@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="cs">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Web OS</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="desktop">
+      <div class="desktop-icons" id="desktop-icons"></div>
+      <div class="windows-layer" id="windows-layer"></div>
+    </div>
+
+    <div class="taskbar" id="taskbar">
+      <button class="start-button" id="start-button">Start</button>
+      <div class="taskbar-apps" id="taskbar-apps"></div>
+      <div class="tray">
+        <span id="clock" class="clock"></span>
+      </div>
+    </div>
+
+    <div class="start-menu hidden" id="start-menu">
+      <button class="menu-item" data-app="notepad">Notepad</button>
+      <button class="menu-item" data-app="files">Files</button>
+      <button class="menu-item" data-app="browser">Browser</button>
+      <button class="menu-item" data-app="terminal">Terminal</button>
+      <button class="menu-item" data-app="calculator">Calculator</button>
+    </div>
+
+    <script src="script.js"></script>
+  </body>
+</html>

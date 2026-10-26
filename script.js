@@ -6,6 +6,11 @@ const APP_META = {
   calculator: { title: 'Calculator', width: 360, height: 420 }
 };
 
+const LOGIN = {
+  username: 'admin',
+  password: 'admin'
+};
+
 const state = {
   windows: [],
   nextId: 1,
@@ -17,7 +22,9 @@ const state = {
     'Documents/Idea.md': '# Idea\n\nVytvořit jednoduchý online počítač pro práci v prohlížeči.',
     'Pictures/Wallpapers.txt': 'Web OS wallpaper concept\n\n- neon modrá\n- tmavý design\n- elegantní taskbar'
   },
-  selectedFile: 'Home/Welcome.txt'
+  selectedFile: 'Home/Welcome.txt',
+  desktopReady: false,
+  loggedIn: false
 };
 
 let desktopIcons;
@@ -26,8 +33,59 @@ let taskbarApps;
 let startMenu;
 let startButton;
 let clock;
+let loginScreen;
+let loginForm;
+let loginError;
+
+function getAuthState() {
+  return localStorage.getItem('web-os-auth') === 'true';
+}
+
+function setAuthState(value) {
+  localStorage.setItem('web-os-auth', value ? 'true' : 'false');
+  state.loggedIn = value;
+}
+
+function initLogin() {
+  loginScreen = document.getElementById('login-screen');
+  loginForm = document.getElementById('login-form');
+  loginError = document.getElementById('login-error');
+
+  const shouldShowLogin = !getAuthState();
+  const desktopElems = document.querySelectorAll('.hidden-on-login');
+  desktopElems.forEach((el) => {
+    el.style.display = shouldShowLogin ? 'none' : '';
+  });
+
+  if (shouldShowLogin) {
+    loginScreen.classList.remove('hidden');
+    loginForm.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const username = document.getElementById('username').value.trim();
+      const password = document.getElementById('password').value;
+
+      if (username === LOGIN.username && password === LOGIN.password) {
+        setAuthState(true);
+        loginScreen.classList.add('hidden');
+        initDesktop();
+      } else {
+        loginError.textContent = 'Neplatné přihlašovací údaje';
+      }
+    });
+    return;
+  }
+
+  loginScreen.classList.add('hidden');
+  initDesktop();
+}
 
 function initDesktop() {
+  if (state.desktopReady) return;
+  if (!getAuthState()) return;
+
+  state.desktopReady = true;
+  state.loggedIn = true;
+
   desktopIcons = document.getElementById('desktop-icons');
   windowsLayer = document.getElementById('windows-layer');
   taskbarApps = document.getElementById('taskbar-apps');
@@ -35,27 +93,46 @@ function initDesktop() {
   startButton = document.getElementById('start-button');
   clock = document.getElementById('clock');
 
-  if (!desktopIcons || !windowsLayer || !taskbarApps || !startMenu || !startButton || !clock) {
-    return;
-  }
+  const desktopElems = document.querySelectorAll('.hidden-on-login');
+  desktopElems.forEach((el) => {
+    el.style.display = '';
+  });
 
   buildDesktopIcons();
   renderTaskbar();
   openApp('files');
   openApp('notepad');
 
-  startButton.addEventListener('click', () => {
-    startMenu.classList.toggle('hidden');
-  });
+  if (startButton) {
+    startButton.addEventListener('click', () => {
+      startMenu.classList.toggle('hidden');
+    });
+  }
 
   document.addEventListener('click', (event) => {
     if (!event.target.closest('#start-button') && !event.target.closest('#start-menu')) {
-      startMenu.classList.add('hidden');
+      if (startMenu) startMenu.classList.add('hidden');
     }
   });
 
   startMenu.querySelectorAll('.menu-item').forEach((button) => {
     button.addEventListener('click', () => {
+      const action = button.dataset.action;
+      if (action === 'logout') {
+        setAuthState(false);
+        state.desktopReady = false;
+        state.windows = [];
+        if (windowsLayer) windowsLayer.innerHTML = '';
+        if (taskbarApps) taskbarApps.innerHTML = '';
+        if (startMenu) startMenu.classList.add('hidden');
+        if (loginScreen) {
+          loginScreen.classList.remove('hidden');
+          document.getElementById('password').value = '';
+          document.getElementById('username').value = 'admin';
+          loginError.textContent = '';
+        }
+        return;
+      }
       openApp(button.dataset.app);
       startMenu.classList.add('hidden');
     });
@@ -340,7 +417,11 @@ System ready. Type 'help' to see available commands.</div>
           }
         } else if (['+', '-', '*', '/'].includes(value)) {
           if (!expression || /[+\-*/]$/.test(expression)) {
-            expression = expression.slice(0, -1) + value;
+            if (expression && value !== '-') {
+              expression = expression.slice(0, -1) + value;
+            } else if (!expression && value === '-') {
+              expression = '-';
+            }
           } else {
             expression += value;
           }
@@ -568,7 +649,7 @@ function escapeHtml(text) {
 }
 
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initDesktop);
+  document.addEventListener('DOMContentLoaded', initLogin);
 } else {
-  initDesktop();
+  initLogin();
 }

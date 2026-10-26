@@ -7,8 +7,8 @@ const APP_META = {
 };
 
 const LOGIN = {
-  username: 'admin',
-  password: 'admin'
+  username: 'stepan',
+  password: 'janas'
 };
 
 const state = {

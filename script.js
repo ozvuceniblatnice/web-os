@@ -20,20 +20,61 @@ const state = {
   selectedFile: 'Home/Welcome.txt'
 };
 
-const desktopIcons = document.getElementById('desktop-icons');
-const windowsLayer = document.getElementById('windows-layer');
-const taskbarApps = document.getElementById('taskbar-apps');
-const startMenu = document.getElementById('start-menu');
-const startButton = document.getElementById('start-button');
-const clock = document.getElementById('clock');
+let desktopIcons;
+let windowsLayer;
+let taskbarApps;
+let startMenu;
+let startButton;
+let clock;
+
+function initDesktop() {
+  desktopIcons = document.getElementById('desktop-icons');
+  windowsLayer = document.getElementById('windows-layer');
+  taskbarApps = document.getElementById('taskbar-apps');
+  startMenu = document.getElementById('start-menu');
+  startButton = document.getElementById('start-button');
+  clock = document.getElementById('clock');
+
+  if (!desktopIcons || !windowsLayer || !taskbarApps || !startMenu || !startButton || !clock) {
+    return;
+  }
+
+  buildDesktopIcons();
+  renderTaskbar();
+  openApp('files');
+  openApp('notepad');
+
+  startButton.addEventListener('click', () => {
+    startMenu.classList.toggle('hidden');
+  });
+
+  document.addEventListener('click', (event) => {
+    if (!event.target.closest('#start-button') && !event.target.closest('#start-menu')) {
+      startMenu.classList.add('hidden');
+    }
+  });
+
+  startMenu.querySelectorAll('.menu-item').forEach((button) => {
+    button.addEventListener('click', () => {
+      openApp(button.dataset.app);
+      startMenu.classList.add('hidden');
+    });
+  });
+
+  const savedNote = localStorage.getItem('web-os-note');
+  if (savedNote) {
+    state.fileSystem['Home/Welcome.txt'] = savedNote;
+  }
+
+  updateClock();
+  setInterval(updateClock, 1000);
+}
 
 function updateClock() {
+  if (!clock) return;
   const now = new Date();
   clock.textContent = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
-
-setInterval(updateClock, 1000);
-updateClock();
 
 function showToast(msg) {
   const toast = document.createElement('div');
@@ -59,6 +100,7 @@ function desktopIcon(name, app, emoji) {
 }
 
 function buildDesktopIcons() {
+  desktopIcons.innerHTML = '';
   desktopIcon('Notepad', 'notepad', '✎');
   desktopIcon('Files', 'files', '📁');
   desktopIcon('Browser', 'browser', '🌐');
@@ -67,6 +109,8 @@ function buildDesktopIcons() {
 }
 
 function openApp(app) {
+  if (!windowsLayer) return;
+
   const existing = state.windows.find((win) => win.type === app);
   if (existing) {
     const element = document.getElementById(existing.id);
@@ -79,6 +123,8 @@ function openApp(app) {
   }
 
   const meta = APP_META[app];
+  if (!meta) return;
+
   const id = `window-${state.nextId++}`;
   const win = {
     id,
@@ -127,7 +173,7 @@ function renderWindow(win) {
       <div class="app-content notepad-content">
         <textarea id="note-${win.id}" class="notepad-editor">${state.fileSystem['Home/Welcome.txt'] || ''}</textarea>
         <div class="secondary-bar">
-          <button class="secondary-btn" data-save="${win.id}">Uložit</button>
+          <button class="secondary-btn" type="button" data-save="${win.id}">Uložit</button>
         </div>
       </div>
     `;
@@ -166,7 +212,7 @@ function renderWindow(win) {
       <div class="app-content browser-content">
         <div class="browser-bar">
           <input id="browser-url-${win.id}" value="${state.browserUrl}" />
-          <button class="primary-btn" data-browser-go="${win.id}">Go</button>
+          <button class="primary-btn" type="button" data-browser-go="${win.id}">Go</button>
         </div>
         <div class="browser-page" id="browser-page-${win.id}">
           <h2>Vítejte ve Web Browseru</h2>
@@ -192,7 +238,7 @@ function renderWindow(win) {
       const target = url.startsWith('http') ? url : `https://${url}`;
       page.innerHTML = `<h2>${target}</h2><p>Načítání obsahu...</p>`;
 
-      fetch(`https://r.jina.ai/http://` + target.replace(/^https?:\/\//, ''))
+      fetch(`https://r.jina.ai/http://${target.replace(/^https?:\/\//, '')}`)
         .then((response) => response.text())
         .then((text) => {
           page.innerHTML = `<h2>${target}</h2><pre>${escapeHtml(text.slice(0, 4000))}</pre>`;
@@ -210,7 +256,7 @@ function renderWindow(win) {
 System ready. Type 'help' to see available commands.</div>
         <div class="terminal-input">
           <input id="terminal-input-${win.id}" placeholder="zadejte příkaz..." />
-          <button class="primary-btn" data-terminal-run="${win.id}">Spustit</button>
+          <button class="primary-btn" type="button" data-terminal-run="${win.id}">Spustit</button>
         </div>
       </div>
     `;
@@ -221,8 +267,7 @@ System ready. Type 'help' to see available commands.</div>
     const runCommand = () => {
       const command = input.value.trim();
       if (!command) return;
-      const nextLine = `web-os$ ${command}`;
-      output.textContent += `\n${nextLine}`;
+      output.textContent += `\nweb-os$ ${command}`;
       input.value = '';
       const result = handleTerminalCommand(command, win.id);
       if (result) output.textContent += `\n${result}`;
@@ -240,62 +285,82 @@ System ready. Type 'help' to see available commands.</div>
       <div class="app-content calculator-content">
         <div class="calc-screen" id="calc-screen-${win.id}">0</div>
         <div class="calculator-grid">
-          <button class="calc-key operator" data-value="C">C</button>
-          <button class="calc-key operator" data-value="/">/</button>
-          <button class="calc-key operator" data-value="*">×</button>
-          <button class="calc-key operator" data-value="DEL">DEL</button>
+          <button class="calc-key operator" type="button" data-value="C">C</button>
+          <button class="calc-key operator" type="button" data-value="/">/</button>
+          <button class="calc-key operator" type="button" data-value="*">×</button>
+          <button class="calc-key operator" type="button" data-value="DEL">DEL</button>
 
-          <button class="calc-key" data-value="7">7</button>
-          <button class="calc-key" data-value="8">8</button>
-          <button class="calc-key" data-value="9">9</button>
-          <button class="calc-key operator" data-value="-">−</button>
+          <button class="calc-key" type="button" data-value="7">7</button>
+          <button class="calc-key" type="button" data-value="8">8</button>
+          <button class="calc-key" type="button" data-value="9">9</button>
+          <button class="calc-key operator" type="button" data-value="-">−</button>
 
-          <button class="calc-key" data-value="4">4</button>
-          <button class="calc-key" data-value="5">5</button>
-          <button class="calc-key" data-value="6">6</button>
-          <button class="calc-key operator" data-value="+">+</button>
+          <button class="calc-key" type="button" data-value="4">4</button>
+          <button class="calc-key" type="button" data-value="5">5</button>
+          <button class="calc-key" type="button" data-value="6">6</button>
+          <button class="calc-key operator" type="button" data-value="+">+</button>
 
-          <button class="calc-key" data-value="1">1</button>
-          <button class="calc-key" data-value="2">2</button>
-          <button class="calc-key" data-value="3">3</button>
-          <button class="calc-key equals" data-value="=">=</button>
+          <button class="calc-key" type="button" data-value="1">1</button>
+          <button class="calc-key" type="button" data-value="2">2</button>
+          <button class="calc-key" type="button" data-value="3">3</button>
+          <button class="calc-key equals" type="button" data-value="=">=</button>
 
-          <button class="calc-key" data-value="0" style="grid-column: span 3;">0</button>
-          <button class="calc-key" data-value=".">.</button>
+          <button class="calc-key" type="button" data-value="0" style="grid-column: span 3;">0</button>
+          <button class="calc-key" type="button" data-value=".">.</button>
         </div>
       </div>
     `;
 
     const screen = document.getElementById(`calc-screen-${win.id}`);
+    let expression = '';
     let display = '0';
-    let currentExpression = '';
+
+    const renderCalculatorScreen = () => {
+      screen.textContent = display;
+    };
 
     wrapper.querySelectorAll('.calc-key').forEach((btn) => {
       btn.addEventListener('click', () => {
         const value = btn.dataset.value;
+
         if (value === 'C') {
+          expression = '';
           display = '0';
-          currentExpression = '';
         } else if (value === 'DEL') {
-          display = display.length > 1 ? display.slice(0, -1) : '0';
-          currentExpression = currentExpression.slice(0, -1);
+          expression = expression.slice(0, -1);
+          display = expression || '0';
         } else if (value === '=') {
           try {
-            const result = Function(`"use strict"; return (${currentExpression || display})`)();
+            const result = Function(`"use strict"; return (${expression || '0'})`)();
             display = Number.isFinite(result) ? String(result) : 'Error';
-            currentExpression = display;
+            expression = display;
           } catch {
             display = 'Error';
-            currentExpression = '';
+            expression = '';
           }
         } else if (['+', '-', '*', '/'].includes(value)) {
-          currentExpression += value;
+          if (!expression || /[+\-*/]$/.test(expression)) {
+            expression = expression.slice(0, -1) + value;
+          } else {
+            expression += value;
+          }
           display = value;
+        } else if (value === '.') {
+          if (!expression || /[+\-*/]$/.test(expression)) {
+            expression += '0.';
+          } else {
+            const lastNumber = expression.split(/[+\-*/]/).pop();
+            if (!lastNumber.includes('.')) {
+              expression += '.';
+            }
+          }
+          display = expression;
         } else {
-          currentExpression += value;
-          display = display === '0' ? value : display + value;
+          expression += value;
+          display = expression;
         }
-        screen.textContent = display;
+
+        renderCalculatorScreen();
       });
     });
   }
@@ -360,6 +425,7 @@ function closeWindow(id) {
 }
 
 function renderTaskbar() {
+  if (!taskbarApps) return;
   taskbarApps.innerHTML = '';
   state.windows.forEach((win) => {
     const btn = document.createElement('button');
@@ -450,7 +516,7 @@ function renderFileExplorer(id) {
 function handleTerminalCommand(command, id) {
   const lower = command.toLowerCase();
   if (lower === 'help') {
-    return 'Dostupné příkazy:\nhelp\nls\nopen notes\nopen files\nclear\nwhoami\nclock\nshutdown';
+    return 'Dostupné příkazy:\nhelp\nls\nopen notes\nopen files\nopen browser\nopen calculator\nclear\nwhoami\nclock\nshutdown';
   }
   if (lower === 'ls') {
     return Object.keys(state.fileSystem).join('\n');
@@ -492,32 +558,6 @@ function handleTerminalCommand(command, id) {
   return 'Neznámý příkaz.';
 }
 
-startButton.addEventListener('click', () => {
-  startMenu.classList.toggle('hidden');
-});
-
-document.addEventListener('click', (event) => {
-  if (!event.target.closest('#start-button') && !event.target.closest('#start-menu')) {
-    startMenu.classList.add('hidden');
-  }
-});
-
-startMenu.querySelectorAll('.menu-item').forEach((button) => {
-  button.addEventListener('click', () => {
-    openApp(button.dataset.app);
-    startMenu.classList.add('hidden');
-  });
-});
-
-const savedNote = localStorage.getItem('web-os-note');
-if (savedNote) {
-  state.fileSystem['Home/Welcome.txt'] = savedNote;
-}
-
-buildDesktopIcons();
-openApp('files');
-openApp('notepad');
-
 function escapeHtml(text) {
   return text
     .replace(/&/g, '&amp;')
@@ -525,4 +565,10 @@ function escapeHtml(text) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initDesktop);
+} else {
+  initDesktop();
 }

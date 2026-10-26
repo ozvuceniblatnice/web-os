@@ -7,12 +7,31 @@
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <div class="desktop">
+    <div id="login-screen" class="login-screen">
+      <div class="login-panel">
+        <h1>Web OS</h1>
+        <p>Přihlášení</p>
+        <form id="login-form">
+          <label>
+            <span>Uživatelské jméno</span>
+            <input id="username" type="text" value="admin" autocomplete="username" />
+          </label>
+          <label>
+            <span>Heslo</span>
+            <input id="password" type="password" value="admin" autocomplete="current-password" />
+          </label>
+          <button type="submit">Přihlásit</button>
+          <div id="login-error" class="login-error"></div>
+        </form>
+      </div>
+    </div>
+
+    <div class="desktop hidden-on-login">
       <div class="desktop-icons" id="desktop-icons"></div>
       <div class="windows-layer" id="windows-layer"></div>
     </div>
 
-    <div class="taskbar" id="taskbar">
+    <div class="taskbar hidden-on-login" id="taskbar">
       <button class="start-button" id="start-button">Start</button>
       <div class="taskbar-apps" id="taskbar-apps"></div>
       <div class="tray">
@@ -26,6 +45,7 @@
       <button class="menu-item" data-app="browser">Browser</button>
       <button class="menu-item" data-app="terminal">Terminal</button>
       <button class="menu-item" data-app="calculator">Calculator</button>
+      <button class="menu-item logout" data-action="logout">Odhlásit</button>
     </div>
 
     <script src="script.js"></script>
